@@ -243,12 +243,8 @@ def subida_periodica():
                                     month = meses[month]
                                 else:
                                     print("Número de mes no válido. en get de counter")
-                                #utime.sleep(1)
                             else:
                                 print("No se obtuvo la fecha")
-                            #print(str(year)+ " " + str(month)+" " + str(day)+ " " + hora)
-                            
-                        #else:
                             
                         if resultado!="" and obtencion_fecha==True:
                             # Extraer el número de la cadena coincidente
@@ -258,6 +254,10 @@ def subida_periodica():
                                 numero = resultado.group(0)[1:]
                             else :
                                 print("lectura incompleta")
+                                for _ in range(1):  
+                                    reproducir_sonido(buzzer, 2000, 400)  
+                                    utime.sleep_ms(100)  
+                                buzzer.deinit()
                                 #encender led de error------------------------
                                 
                             if numero =='1':
@@ -642,8 +642,3 @@ def main():
 if __name__ == "__main__":
     main()
         
-
-
-
-
-
