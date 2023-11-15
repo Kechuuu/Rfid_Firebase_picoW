@@ -20,6 +20,8 @@ buzzer = PWM(Pin(buzzer_pin))
 #apaga el efecto de la libreria
 pin_off = Pin(19, Pin.OUT)
 
+
+
 #declaracion de variables NTP (TIME)
 year = None
 month = None
@@ -85,7 +87,7 @@ def Lectura_sinConexion():
         (stat, raw_uid) = rdr.anticoll()
         
         if stat == rdr.OK:
-            for _ in range(3):
+            for _ in range(2):
                 #funcion buzzer
                 reproducir_sonido(buzzer, 4000, 200) 
                 utime.sleep_ms(100)  
@@ -188,7 +190,7 @@ def subida_periodica():
                         #busqueda del numero de acceso.
                         patron = r"@\d+"
                         resultado = re.search(patron, str(datastr))
-                        utime.sleep(3)
+                        #utime.sleep(3)
                         
                         
                             
@@ -203,6 +205,10 @@ def subida_periodica():
                             
                             except OSError as e:
                                 print("Error al obtener la hora desde el servidor NTP:", e)
+                                for _ in range(1):  
+                                    reproducir_sonido(buzzer, 2000, 400)  
+                                    utime.sleep_ms(100)  
+                                buzzer.deinit()
                                 
                             if day is not None and 1 <= day <= 31:
                                 print("fecha obtenida")
@@ -237,7 +243,7 @@ def subida_periodica():
                                     month = meses[month]
                                 else:
                                     print("Número de mes no válido. en get de counter")
-                                utime.sleep(1)
+                                #utime.sleep(1)
                             else:
                                 print("No se obtuvo la fecha")
                             #print(str(year)+ " " + str(month)+" " + str(day)+ " " + hora)
@@ -307,8 +313,13 @@ def subida_periodica():
                                         
                                     except Exception as e:
                                         print(f"Error al obtener/incrementar el contador desde Firebase: {str(e)}")
+                                        for _ in range(1):  
+                                            reproducir_sonido(buzzer, 2000, 400)  
+                                            utime.sleep_ms(100)  
+                                        buzzer.deinit()
                                         
                                 print("opened")
+                                led_read.on()
                                 with open("/eventos.txt", "ab") as archivo_flash:  # Utiliza "ab" para agregar datos al archivo existente
                                             archivo_flash.write( data_user + '\n')
                             if numero =='2':
@@ -320,9 +331,6 @@ def subida_periodica():
                                     print(user_)
                                     new_counter = None
                                     try:
-                                        
-                                        
-                                        
                                         response = requests.get(firebase_url + f"/Alerta/{year}/{month}/{day}/{user_}/contador.json?auth={auth_key}")
 
                                         if response.status_code == 200:
@@ -494,6 +502,8 @@ def subir_Flash_FireBase():
             
             except OSError as e:
                 print("Error al obtener la hora desde el servidor NTP:", e)
+                
+                #aqui debe de ir el
                 print("es tiempo de espera conexion")
             print("dia actual: ",day)
             
@@ -599,7 +609,8 @@ def main():
     #inicializacion de leds
     led_read = Pin(20, Pin.OUT) 
     led_wifi = Pin(19, Pin.OUT)
-    
+    buzzer_pin = 16  
+    buzzer = PWM(Pin(buzzer_pin))
     
     ntp_server= "us.pool.ntp.org" #inicializacion del ntp server
     hora = None #variable para inicializar la hora del ntp server
