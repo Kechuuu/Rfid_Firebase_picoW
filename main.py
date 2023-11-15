@@ -20,8 +20,6 @@ buzzer = PWM(Pin(buzzer_pin))
 #apaga el efecto de la libreria
 pin_off = Pin(19, Pin.OUT)
 
-
-
 #declaracion de variables NTP (TIME)
 year = None
 month = None
@@ -42,7 +40,6 @@ data_user = ""
 firebase_url = "https://nas-access-2b3a6-default-rtdb.firebaseio.com"
 auth_key = "oKZ6wOAwv6pu7RmzBoInx5fg1xDOeftAu84Ysrht"
 
-
 #declaracion de eventos tiempo
 Ultimo_registro = "No hay registro actual"
 Registro_Actual = None
@@ -50,7 +47,6 @@ Registro_Actual = None
 #ssid y contraseña wifi
 SSID = "INFINITUMDA24"#"RedPrueba"## #SSID
 PASSWORD = "yrtkrkRH7q" #"012345678"###contraseña
-
 
 # Coneccion a red 
 wlan = network.WLAN(network.STA_IF)
@@ -185,14 +181,11 @@ def subida_periodica():
                         for i in data:
                             datastr = datastr + (chr(i))
                             hexstr.append(hex(i))
-                       
                         
                         #busqueda del numero de acceso.
                         patron = r"@\d+"
                         resultado = re.search(patron, str(datastr))
-                        #utime.sleep(3)
-                        
-                        
+                        #utime.sleep(3)	
                             
                         if wlan.isconnected(): # verifica que hay una conexion y puedo ejecutar un codigo
                             day = None
@@ -258,7 +251,6 @@ def subida_periodica():
                                     reproducir_sonido(buzzer, 2000, 400)  
                                     utime.sleep_ms(100)  
                                 buzzer.deinit()
-                                #encender led de error------------------------
                                 
                             if numero =='1':
                                 print("nivel alto")
@@ -271,8 +263,6 @@ def subida_periodica():
                                     try:
                                         firebase_url = "https://nas-access-2b3a6-default-rtdb.firebaseio.com"
                                         auth_key = "oKZ6wOAwv6pu7RmzBoInx5fg1xDOeftAu84Ysrht"
-                                        
-                                        
                                         response = requests.get(firebase_url + f"/OchoaTech/{year}/{month}/{day}/{user_}/contador.json?auth={auth_key}")
 
                                         if response.status_code == 200:
@@ -296,13 +286,11 @@ def subida_periodica():
 
                                         response = requests.put(firebase_url + f"/OchoaTech/{year}/{month}/{day}/{user_}/contador.json?auth={auth_key}", json=new_counter)
 
-
                                         if response.status_code != 200:
                                             print(f"Error al actualizar el contador en Firebase. Código de estado: {response.status_code}")
-                                        
-
                                         response.close()
                                         codigo = None
+                                        
                                         if new_counter % 2 == 0:
                                             codigo =  "outside"
                                         else:
@@ -357,13 +345,10 @@ def subida_periodica():
 
                                         if response.status_code != 200:
                                             print(f"Error al actualizar el contador en Firebase. Código de estado: {response.status_code}")
-                                            
                                         response.close()
                                         
                                         response = requests.put(firebase_url + f"/Alerta/{year}/{month}/{day}/{user_}/hora/{hora}.json?auth={auth_key}", json="Warning")
                                         response.close()
-                                        
-                             
                                         
                                     except Exception as e:
                                         print(f"Error al obtener/incrementar el contador desde Firebase: {str(e)}")
@@ -460,12 +445,9 @@ def subida_periodica():
                                 else:
                                     print("enviado con exito")
                                 response.close()
-                                
                             except Exception as e:
                                 print(f"Error al obtener/incrementar el contador desde Firebase: {str(e)}")
-                            
-                            
-                           
+                                
                         rdr.stop_crypto1()
                         
                     else:
@@ -603,7 +585,6 @@ def subir_Flash_FireBase():
                         utime.sleep(10)
                 else:
                     print("No hay datos en eventos.txt")
-
             
 def main():
     #inicializacion de leds
