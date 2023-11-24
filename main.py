@@ -45,8 +45,11 @@ Ultimo_registro = "No hay registro actual"
 Registro_Actual = None
 
 #ssid y contraseña wifi
-SSID = "INFINITUMDA24"#"RedPrueba"## #SSID
-PASSWORD = "yrtkrkRH7q" #"012345678"###contraseña
+SSID = "INFINITUMDA24"
+PASSWORD ="yrtkrkRH7q"
+
+# SSID = "RedPrueba"
+# PASSWORD = "012345678"
 
 # Coneccion a red 
 wlan = network.WLAN(network.STA_IF)
@@ -74,6 +77,53 @@ def reproducir_sonido(buzzer, frecuencia, duracion_ms):
     buzzer.duty_u16(32768)
     utime.sleep_ms(duracion_ms)
     buzzer.duty_u16(0)
+    
+def actualizar_contador_y_guardar_evento(data_user):
+    try:
+        # Intenta leer el diccionario de contadores desde la memoria flash
+        with open('/contadores.txt', 'r') as file:
+            contadores = eval(file.read())
+    except (OSError, SyntaxError):
+        # Si el archivo no existe o no es un diccionario válido, iniciar con un diccionario vacío
+        contadores = {}
+
+    # Obtener el contador actual para el usuario o iniciar uno nuevo si no existe
+    contador = contadores.get(data_user, 0)
+
+    # Incrementar el contador
+    contador += 1
+
+    # Actualizar el contador asociado al usuario
+    contadores[data_user] = contador
+
+    # Guardar el diccionario actualizado en la memoria flash
+    with open('/contadores.txt', 'w') as file:
+        file.write(str(contadores))
+
+    # Guardar el usuario y el nuevo valor del contador en el archivo eventos.txt
+#     with open("/flash/eventos.txt", "a") as archivo_flash:
+#         archivo_flash.write(f"{data_user} - Contador: {contador}\n")
+
+def imprimir_contador(data_user):
+    try:
+        # Intenta leer el diccionario de contadores desde la memoria flash
+        with open('/contadores.txt', 'r') as file:
+            contadores = eval(file.read())
+    except (OSError, SyntaxError):
+        # Si el archivo no existe o no es un diccionario válido, iniciar con un diccionario vacío
+        contadores = {}
+
+    # Obtener el contador actual para el usuario o imprimir un mensaje si el usuario no existe
+    if data_user in contadores:
+        contador = contadores[data_user]
+        
+        print(f"Contador para {data_user}: {contador}")
+    else:
+        print(f"No hay información para el usuario {data_user}")
+        contador = 1 
+        
+    return contador
+
 
 def Lectura_sinConexion():
     rdr =mfrc522.MFRC522(sck=2, miso=4, mosi=3, cs=1, rst=0)
@@ -83,11 +133,7 @@ def Lectura_sinConexion():
         (stat, raw_uid) = rdr.anticoll()
         
         if stat == rdr.OK:
-            for _ in range(2):
-                #funcion buzzer
-                reproducir_sonido(buzzer, 4000, 200) 
-                utime.sleep_ms(100)  
-            buzzer.deinit() #detiene el buzzer
+            
             
             print("CARD DETECTED")
             print(" -  TAG TYPE : 0x%02x" % tag_type)
@@ -103,6 +149,11 @@ def Lectura_sinConexion():
                     data = rdr.read(8)
                     datastr = ""
                     hexstr = []
+                    for _ in range(2):
+                        #funcion buzzer
+                        reproducir_sonido(buzzer, 4000, 200) 
+                        utime.sleep_ms(100)  
+                    buzzer.deinit() #detiene el buzzer
                     
                     #concatenar char de cadena
                     for i in data:
@@ -127,14 +178,16 @@ def Lectura_sinConexion():
                         
                         with open("/eventos.txt", "ab") as archivo_flash:  # Utiliza "ab" para agregar datos al archivo existente
                             archivo_flash.write(data_user + '\n')
-                        utime.sleep(2)                           
+                       # utime.sleep(2)                           
         
     else:
-        #condicion para ejecutar la conexion en segundo plano
-        wlan.connect(SSID, PASSWORD)
-        led_wifi.on()
-        utime.sleep(3)
-        print("conectando desde funcion")
+        try:
+            wlan.connect(SSID, PASSWORD)
+            led_wifi.on()
+            utime.sleep(3)
+            print("Conectando desde función")
+        except OSError as e:
+            print(f"Error al conectar a la red: {e}")
 
 def subida_periodica():
     led_read = Pin(20, Pin.OUT) 
@@ -151,6 +204,7 @@ def subida_periodica():
         subir_Flash_FireBase()    
         led_wifi.off()       
         pin_off = Pin(19, Pin.OUT)
+        rdr =mfrc522.MFRC522(sck=2, miso=4, mosi=3, cs=1, rst=0)
         (stat, tag_type) = rdr.request(rdr.REQIDL)
         numero = None
 
@@ -196,8 +250,17 @@ def subida_periodica():
                                 tijuana_time = utime.mktime(utc_time) - 25200  # Restar 8 horas para PST
                                 year, month, day, hour, minute, second = utime.localtime(tijuana_time)[:6]
                             
+                            except OverflowError as e:
+                                print("Error de desbordamiento de tiempo:", e)
+                                pass
                             except OSError as e:
                                 print("Error al obtener la hora desde el servidor NTP:", e)
+                                for i in range(1):  
+                                    reproducir_sonido(buzzer, 2000, 400)  
+                                    utime.sleep_ms(100)  
+                                buzzer.deinit()
+                                return
+                            
                                 for _ in range(1):  
                                     reproducir_sonido(buzzer, 2000, 400)  
                                     utime.sleep_ms(100)  
@@ -259,53 +322,29 @@ def subida_periodica():
                                 if len(partes) > 1:
                                     user_ = partes[1].split("#")[0]  # Dividir la segunda parte en "#" y tomar la primera parte
                                     print(user_)
-                                    new_counter = None
-                                    try:
-                                        firebase_url = "https://nas-access-2b3a6-default-rtdb.firebaseio.com"
-                                        auth_key = "oKZ6wOAwv6pu7RmzBoInx5fg1xDOeftAu84Ysrht"
-                                        response = requests.get(firebase_url + f"/OchoaTech/{year}/{month}/{day}/{user_}/contador.json?auth={auth_key}")
-
-                                        if response.status_code == 200:
-                                            current_counter = response.json()
-                                            print("Contador "+ json.dumps(current_counter) )
-                                        else:
-                                            current_counter = None  # Si no se puede obtener el contador, establece el valor en None
-
-                                        response.close()
-                                        if current_counter is not None:
-                                            new_counter = current_counter + 1
-                                        else:
-                                            new_counter = 1  # Si no hay contador previo, comienza desde 1
-                                        
-                                        user_data = {
-                                            user_: {
-                                                "contador": new_counter,
-                                                "hora": hora
-                                            }
-                                        }
-
-                                        response = requests.put(firebase_url + f"/OchoaTech/{year}/{month}/{day}/{user_}/contador.json?auth={auth_key}", json=new_counter)
-
-                                        if response.status_code != 200:
-                                            print(f"Error al actualizar el contador en Firebase. Código de estado: {response.status_code}")
-                                        response.close()
-                                        codigo = None
-                                        
-                                        if new_counter % 2 == 0:
-                                            codigo =  "outside"
-                                        else:
-                                            codigo =  "inside"
-                                        
-                                        response = requests.put(firebase_url + f"/OchoaTech/{year}/{month}/{day}/{user_}/hora/{hora}.json?auth={auth_key}", json=codigo)
-                                        response.close()
-                                        
-                                    except Exception as e:
-                                        print(f"Error al obtener/incrementar el contador desde Firebase: {str(e)}")
+                                    
+                                    actualizar_contador_y_guardar_evento(user_)
+                                    contador = imprimir_contador(user_)
+                                    
+                                    estado = ""
+                                    
+                                    if contador % 2 == 0:
+                                        estado = "outside"
+                                    else:
+                                        estado = "inside"
+                                    
+                                    
+                                    #response = requests.put(firebase_url + f"/OchoaTech/{year}/{month}/{day}/{user_}/contador.json?auth={auth_key}", json=estado)
+                                    response = requests.put(firebase_url + f"/OchoaTech/{year}/{month}/{day}/{user_}/hora/{hora} Registros.json?auth={auth_key}", json=contador)
+                                    
+                                    if response.status_code != 200:
+                                        print(f"Error al actualizar el contador en Firebase. Código de estado: {response.status_code}")
                                         for _ in range(1):  
                                             reproducir_sonido(buzzer, 2000, 400)  
                                             utime.sleep_ms(100)  
                                         buzzer.deinit()
-                                        
+                                    response.close()
+                                    
                                 print("opened")
                                 led_read.on()
                                 with open("/eventos.txt", "ab") as archivo_flash:  # Utiliza "ab" para agregar datos al archivo existente
@@ -323,7 +362,7 @@ def subida_periodica():
 
                                         if response.status_code == 200:
                                             current_counter = response.json()
-                                            print("hola "+ json.dumps(current_counter) )
+                                            #print("hola "+ json.dumps(current_counter) )
                                         else:
                                             current_counter = None  # Si no se puede obtener el contador, establece el valor en None
 
@@ -604,6 +643,7 @@ def main():
     wlan.active(True)
     
     print("inicio del main")
+    tiempo_actual = utime.ticks_ms()
     
     #se va a ejecutar hasta que logre una conexion a red 
     while not wlan.isconnected():  
@@ -618,8 +658,58 @@ def main():
         led_read.on()
         subida_periodica()
         
+        # Calcular el tiempo transcurrido
+        tiempo_transcurrido = utime.ticks_diff(utime.ticks_ms(), tiempo_actual)
+#         utime.sleep(1)
+#         print(tiempo_transcurrido)
+        if tiempo_transcurrido > 600000 :
+            print("pide fecha")
+            tiempo_actual = utime.ticks_ms()
+        
+            if wlan.isconnected():
+                try:
+                    ntptime.host = ntp_server
+                    ntptime.settime()
+                    utc_time = utime.localtime()
+                    tijuana_time = utime.mktime(utc_time) - 25200  # Restar 8 horas para PST
+                    year, month, day, hour, minute, second = utime.localtime(tijuana_time)[:6]
+                    hora = "Hora actual: {:02d}:{:02d}:{:02d} {}/{}/{}".format(hour, minute, second, day, month, year)
+                except OverflowError as e:
+                    print("Error de desbordamiento de tiempo:", e)
+                    pass
+                except OSError as e:
+                    print("Error al obtener la hora desde el servidor NTP:", e)
+
+                print(hora)
+                
+                if(hour == 7):# and minute ==14):
+                    print("hola")
+                    with open("contadores.txt", "rb") as archivo_flash:
+                        # Leer el contenido de la memoria flash
+                        contenido = archivo_flash.read()
+
+                    # Verificar si hay contenido en la memoria flash
+                    if contenido:
+                        # Limpiar la memoria flash si hay contenido
+                        with open("contadores.txt", "wb") as archivo_flash:
+                            archivo_flash.write(b"")  # Escribir datos binarios vacíos para limpiar la memoria
+                        print("La memoria flash ha sido limpiada.")
+                    else:
+                        print("La memoria flash ya está vacía o el archivo no existe.")
+                        with open("contadores.txt", "wb") as archivo_flash:
+                            archivo_flash.write(b"")  # Escribir datos binarios vacíos para limpiar la memoria
+        
+        
     
             
 if __name__ == "__main__":
     main()
         
+
+
+
+
+
+
+
+
